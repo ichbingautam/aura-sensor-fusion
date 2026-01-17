@@ -81,13 +81,11 @@ public:
 
     virtual ~FusionNodeBase() = default;
 
-    // Non-copyable
+    // Non-copyable, non-movable (due to atomic member)
     FusionNodeBase(const FusionNodeBase&) = delete;
     FusionNodeBase& operator=(const FusionNodeBase&) = delete;
-
-    // Movable
-    FusionNodeBase(FusionNodeBase&&) noexcept = default;
-    FusionNodeBase& operator=(FusionNodeBase&&) noexcept = default;
+    FusionNodeBase(FusionNodeBase&&) = delete;
+    FusionNodeBase& operator=(FusionNodeBase&&) = delete;
 
     /// Initialize the node
     [[nodiscard]] virtual bool initialize() = 0;

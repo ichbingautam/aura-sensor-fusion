@@ -40,7 +40,7 @@ public:
     explicit constexpr Timestamp(std::int64_t nanoseconds) noexcept : nanoseconds_(nanoseconds) {}
 
     /// Construct from duration
-    explicit constexpr Timestamp(Duration duration) noexcept : nanoseconds_(duration.count()) {}
+    explicit Timestamp(Duration duration) noexcept : nanoseconds_(duration.count()) {}
 
     /// Get current wall-clock time
     [[nodiscard]] static Timestamp now() noexcept {
@@ -87,7 +87,7 @@ public:
     }
 
     /// Get as std::chrono::duration
-    [[nodiscard]] constexpr Duration toDuration() const noexcept { return Duration(nanoseconds_); }
+    [[nodiscard]] Duration toDuration() const noexcept { return Duration(nanoseconds_); }
 
     /// Check if timestamp is zero/unset
     [[nodiscard]] constexpr bool isZero() const noexcept { return nanoseconds_ == 0; }
@@ -118,12 +118,12 @@ public:
     }
 
     /// Add duration to timestamp
-    [[nodiscard]] constexpr Timestamp operator+(Duration duration) const noexcept {
+    [[nodiscard]] Timestamp operator+(Duration duration) const noexcept {
         return Timestamp(nanoseconds_ + duration.count());
     }
 
     /// Subtract duration from timestamp
-    [[nodiscard]] constexpr Timestamp operator-(Duration duration) const noexcept {
+    [[nodiscard]] Timestamp operator-(Duration duration) const noexcept {
         return Timestamp(nanoseconds_ - duration.count());
     }
 
@@ -149,7 +149,7 @@ public:
     }
 
     /// Check if this timestamp is within a tolerance of another
-    [[nodiscard]] constexpr bool isWithin(Timestamp other, Duration tolerance) const noexcept {
+    [[nodiscard]] bool isWithin(Timestamp other, Duration tolerance) const noexcept {
         return absDiff(other).nanoseconds_ <= tolerance.count();
     }
 
@@ -162,26 +162,26 @@ private:
  */
 class TimeInterval {
 public:
-    constexpr TimeInterval() noexcept = default;
+    TimeInterval() noexcept = default;
 
-    explicit constexpr TimeInterval(Timestamp::Duration duration) noexcept : duration_(duration) {}
+    explicit TimeInterval(Timestamp::Duration duration) noexcept : duration_(duration) {}
 
-    [[nodiscard]] static constexpr TimeInterval fromSeconds(double seconds) noexcept {
+    [[nodiscard]] static TimeInterval fromSeconds(double seconds) noexcept {
         return TimeInterval(std::chrono::duration_cast<Timestamp::Duration>(
             std::chrono::duration<double>(seconds)));
     }
 
-    [[nodiscard]] static constexpr TimeInterval fromMilliseconds(std::int64_t ms) noexcept {
+    [[nodiscard]] static TimeInterval fromMilliseconds(std::int64_t ms) noexcept {
         return TimeInterval(std::chrono::milliseconds(ms));
     }
 
-    [[nodiscard]] constexpr Timestamp::Duration duration() const noexcept { return duration_; }
+    [[nodiscard]] Timestamp::Duration duration() const noexcept { return duration_; }
 
-    [[nodiscard]] constexpr double seconds() const noexcept {
+    [[nodiscard]] double seconds() const noexcept {
         return std::chrono::duration<double>(duration_).count();
     }
 
-    [[nodiscard]] constexpr std::int64_t milliseconds() const noexcept {
+    [[nodiscard]] std::int64_t milliseconds() const noexcept {
         return std::chrono::duration_cast<std::chrono::milliseconds>(duration_).count();
     }
 
