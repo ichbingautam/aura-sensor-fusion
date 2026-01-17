@@ -18,10 +18,10 @@
 #define AURA_VERSION_STRING "1.0.0"
 
 // Core includes
-#include <aura/core/types.hpp>
-#include <aura/core/timestamp.hpp>
-#include <aura/core/memory_pool.hpp>
 #include <aura/core/logging.hpp>
+#include <aura/core/memory_pool.hpp>
+#include <aura/core/timestamp.hpp>
+#include <aura/core/types.hpp>
 
 // Concurrency includes
 #include <aura/concurrency/lock_free_ring_buffer.hpp>
@@ -29,12 +29,12 @@
 
 // Sensor includes
 #include <aura/sensors/sensor_base.hpp>
-#include <aura/sensors/sensor_traits.hpp>
 #include <aura/sensors/sensor_data.hpp>
+#include <aura/sensors/sensor_traits.hpp>
 
 // Fusion includes
-#include <aura/fusion/fusion_node.hpp>
 #include <aura/fusion/fusion_concepts.hpp>
+#include <aura/fusion/fusion_node.hpp>
 
 // Utils includes
 #include <aura/utils/profiler.hpp>
