@@ -136,7 +136,8 @@ public:
 
         // Print timestamp (simplified format)
         auto time_ms = msg.timestamp.milliseconds();
-        std::fprintf(output_, "[%lld.%03lld] ", time_ms / 1000, time_ms % 1000);
+        std::fprintf(output_, "[%ld.%03ld] ", static_cast<long>(time_ms / 1000),
+                     static_cast<long>(time_ms % 1000));
 
         // Print message
         std::fprintf(output_, "%s", msg.message.c_str());

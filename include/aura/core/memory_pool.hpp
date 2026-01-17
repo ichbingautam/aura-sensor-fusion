@@ -17,10 +17,13 @@
 #include <atomic>
 #include <cassert>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <new>
+#include <optional>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace aura {
