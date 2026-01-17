@@ -28,10 +28,18 @@
 #include <mutex>
 #include <optional>
 #include <random>
-#include <stop_token>
 #include <thread>
 #include <type_traits>
 #include <vector>
+
+// Feature detection for std::jthread (C++20)
+// AppleClang doesn't support jthread/stop_token yet
+#if defined(__cpp_lib_jthread) && __cpp_lib_jthread >= 201911L
+#include <stop_token>
+#define AURA_HAS_JTHREAD 1
+#else
+#define AURA_HAS_JTHREAD 0
+#endif
 
 namespace aura {
 
@@ -164,14 +172,18 @@ public:
      */
     explicit ThreadPool(std::size_t num_threads = 0)
         : num_threads_(num_threads == 0 ? std::thread::hardware_concurrency() : num_threads),
-          task_queues_(num_threads_), running_(true), pending_tasks_(0) {
+          task_queues_(num_threads_), running_(true), pending_tasks_(0), stop_requested_(false) {
         AURA_LOG_INFO("ThreadPool: Starting {} worker threads", num_threads_);
 
         workers_.reserve(num_threads_);
         for (std::size_t i = 0; i < num_threads_; ++i) {
+#if AURA_HAS_JTHREAD
             workers_.emplace_back([this, i](std::stop_token stop_token) {
-                workerLoop(static_cast<unsigned int>(i), stop_token);
+                workerLoopJthread(static_cast<unsigned int>(i), stop_token);
             });
+#else
+            workers_.emplace_back([this, i]() { workerLoop(static_cast<unsigned int>(i)); });
+#endif
         }
     }
 
@@ -284,13 +296,18 @@ public:
             waitAll();
         }
 
+        // Request stop for all workers
+        stop_requested_.store(true, std::memory_order_release);
+
         // Wake all workers
         condition_.notify_all();
 
-        // Request stop for all workers
+#if AURA_HAS_JTHREAD
+        // Request stop via jthread mechanism
         for (auto& worker : workers_) {
             worker.request_stop();
         }
+#endif
 
         // Wait for workers to finish
         for (auto& worker : workers_) {
@@ -337,11 +354,61 @@ public:
 
 private:
     /**
-     * @brief Worker thread main loop
+     * @brief Worker thread main loop (fallback for platforms without jthread)
      */
-    void workerLoop(unsigned int worker_id, std::stop_token stop_token) {
+    void workerLoop(unsigned int worker_id) {
         // Thread-local random generator for work stealing
-        thread_local std::mt19937 rng(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+        thread_local std::mt19937 rng(
+            static_cast<unsigned int>(std::hash<std::thread::id>{}(std::this_thread::get_id())));
+
+        while (!stop_requested_.load(std::memory_order_acquire)) {
+            std::optional<PrioritizedTask> task;
+
+            // Try to get task from own queue first
+            task = task_queues_[worker_id].tryPop();
+
+            // If no task, try to steal from another queue
+            if (!task) {
+                for (std::size_t attempts = 0; attempts < num_threads_ && !task; ++attempts) {
+                    auto victim = rng() % num_threads_;
+                    if (victim != worker_id) {
+                        task = task_queues_[victim].trySteal();
+                    }
+                }
+            }
+
+            if (task) {
+                try {
+                    (*task)();
+                } catch (const std::exception& e) {
+                    AURA_LOG_ERROR("ThreadPool: Task threw exception: {}", e.what());
+                } catch (...) {
+                    AURA_LOG_ERROR("ThreadPool: Task threw unknown exception");
+                }
+
+                auto remaining = pending_tasks_.fetch_sub(1, std::memory_order_relaxed) - 1;
+                if (remaining == 0) {
+                    wait_condition_.notify_all();
+                }
+            } else {
+                // No work available, wait for notification
+                std::unique_lock lock(mutex_);
+                condition_.wait_for(lock, std::chrono::milliseconds(10), [&] {
+                    return stop_requested_.load(std::memory_order_acquire) ||
+                           !task_queues_[worker_id].empty();
+                });
+            }
+        }
+    }
+
+#if AURA_HAS_JTHREAD
+    /**
+     * @brief Worker thread main loop (for platforms with jthread support)
+     */
+    void workerLoopJthread(unsigned int worker_id, std::stop_token stop_token) {
+        // Thread-local random generator for work stealing
+        thread_local std::mt19937 rng(
+            static_cast<unsigned int>(std::hash<std::thread::id>{}(std::this_thread::get_id())));
 
         while (!stop_token.stop_requested()) {
             std::optional<PrioritizedTask> task;
@@ -381,12 +448,18 @@ private:
             }
         }
     }
+#endif
 
     const std::size_t num_threads_;
     std::vector<TaskQueue> task_queues_;
+#if AURA_HAS_JTHREAD
     std::vector<std::jthread> workers_;
+#else
+    std::vector<std::thread> workers_;
+#endif
 
     std::atomic<bool> running_{true};
+    std::atomic<bool> stop_requested_{false};
     std::atomic<std::size_t> pending_tasks_{0};
     std::atomic<std::size_t> next_queue_{0};
 
