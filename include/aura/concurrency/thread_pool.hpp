@@ -279,6 +279,11 @@ public:
 
         AURA_LOG_INFO("ThreadPool: Shutting down...");
 
+        // If wait_for_tasks is true, wait for all pending tasks to complete
+        if (wait_for_tasks) {
+            waitAll();
+        }
+
         // Wake all workers
         condition_.notify_all();
 
