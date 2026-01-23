@@ -25,48 +25,66 @@ AURA (Autonomous Unified Real-time Architecture) is a modular, template-based pi
 - **Distribute** processing across CPU cores
 - **Visualize** real-time debugging interfaces
 
-Built with modern C++20/23, AURA leverages lock-free data structures, template metaprogramming, and SIMD-optimized processing kernels for maximum performance.
+Built with modern C++20, AURA leverages lock-free data structures, template metaprogramming, and high-precision timing utilities for maximum performance.
 
 ## ✨ Features
 
 ### Core Capabilities
 
-| Feature | Description |
-|---------|-------------|
-| 🔄 **Real-time Fusion** | Process LiDAR, camera, radar, and GPS data with <100ms latency |
-| 🔒 **Lock-free Pipelines** | Zero-copy data transfer with atomic operations |
-| ⚡ **SIMD Acceleration** | AVX2/AVX-512 optimized processing kernels |
-| 🧵 **Work-stealing Scheduler** | Efficient multi-threaded task distribution |
-| 📊 **Temporal Alignment** | Synchronize asynchronous sensor streams |
-| 🎯 **Multi-hypothesis Tracking** | Probabilistic object tracking and prediction |
+| Feature | Description | Status |
+|---------|-------------|--------|
+| 🔄 **Real-time Pipeline** | Modular fusion nodes with configurable input/output buffers | ✅ Implemented |
+| 🔒 **Lock-free Ring Buffers** | SPSC and MPMC lock-free ring buffers with cache-line padding | ✅ Implemented |
+| 🧵 **Work-stealing Thread Pool** | Priority-based task scheduling with work-stealing | ✅ Implemented |
+| ⏱️ **High-precision Timestamps** | Nanosecond-precision timing with C++20 `<=>` support | ✅ Implemented |
+| 🎯 **Typed Fusion Nodes** | Type-safe sensor data processing with template metaprogramming | ✅ Implemented |
+| 📊 **Memory Pool Allocator** | Custom allocators for efficient memory management | ✅ Implemented |
+| 📝 **Structured Logging** | Thread-safe logging with multiple severity levels | ✅ Implemented |
+| 🔧 **Performance Profiling** | Scoped timers and profiling utilities | ✅ Implemented |
+
+### Sensor Support
+
+| Sensor Type | Data Structure | Status |
+|-------------|----------------|--------|
+| **LiDAR** | `LidarPoint`, `LidarFrame` | ✅ Implemented |
+| **Camera** | `CameraImage` | ✅ Implemented |
+| **Radar** | `RadarDetection`, `RadarFrame` | ✅ Implemented |
+| **GPS/IMU** | `GpsReading`, `ImuReading` | ✅ Implemented |
 
 ### Technical Highlights
 
 - **Template Metaprogramming**: Type-safe sensor data handling with compile-time optimization
-- **Concepts & Constraints**: C++20 concepts for algorithm requirements
-- **Coroutines**: Asynchronous data processing with C++20 coroutines
-- **Custom Allocators**: Memory pool allocators for zero-copy data transfer
-- **RAII Resource Management**: Deterministic cleanup with smart pointers
+- **Concepts & Constraints**: C++20 concepts for algorithm requirements (`FusableData`, `SensorAdapter`)
+- **Modern C++20 Features**: Three-way comparison (`<=>`), `std::jthread` support, structured bindings
+- **Cross-platform Threading**: Automatic fallback to `std::thread` when `std::jthread` is unavailable
+- **RAII Resource Management**: Deterministic cleanup with smart pointers and scoped guards
+- **Cache-aware Design**: Cache-line padding to prevent false sharing in concurrent structures
 
 ## 📋 Requirements
 
 ### Compiler Support
 
-| Compiler | Minimum Version |
-|----------|-----------------|
-| GCC | 10+ |
-| Clang | 12+ |
-| MSVC | 2019 (16.10+) |
+| Compiler | Minimum Version | Notes |
+|----------|-----------------|-------|
+| GCC | 10+ | Full C++20 support |
+| Clang | 12+ | Full C++20 support |
+| AppleClang | 14+ | Uses `std::thread` fallback |
+| MSVC | 2019 (16.10+) | Full C++20 support |
 
 ### Dependencies
 
-- CMake 3.20+
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| CMake | 3.20+ | Build system |
+| Google Test | 1.11+ | Unit testing |
+| Google Benchmark | 1.6+ | Performance benchmarks |
+
+**Optional Dependencies** (for extended features):
+
 - Eigen3 (linear algebra)
 - OpenCV 4.x (computer vision)
 - PCL 1.12+ (point cloud processing)
 - Boost 1.75+ (system, thread)
-- Google Test (testing)
-- Google Benchmark (performance)
 
 ## 🏁 Quick Start
 
@@ -84,6 +102,7 @@ mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release \
       -DAURA_BUILD_TESTS=ON \
       -DAURA_BUILD_BENCHMARKS=ON \
+      -DAURA_BUILD_EXAMPLES=ON \
       ..
 
 # Build
@@ -96,44 +115,92 @@ ctest --output-on-failure
 sudo cmake --install .
 ```
 
-### Docker Build
+### CMake Options
 
-```bash
-# Build Docker image
-docker build -t aura-fusion:latest .
-
-# Run container
-docker run -it --rm aura-fusion:latest
-```
+| Option | Default | Description |
+|--------|---------|-------------|
+| `AURA_BUILD_TESTS` | `ON` | Build unit tests |
+| `AURA_BUILD_BENCHMARKS` | `ON` | Build performance benchmarks |
+| `AURA_BUILD_EXAMPLES` | `ON` | Build example applications |
+| `AURA_ENABLE_SANITIZERS` | `OFF` | Enable AddressSanitizer/UBSan |
 
 ### Basic Usage
 
 ```cpp
-#include <aura/core/pipeline.hpp>
-#include <aura/sensors/lidar_adapter.hpp>
-#include <aura/fusion/kalman_filter.hpp>
+#include <aura/aura.hpp>
 
 int main() {
     using namespace aura;
 
-    // Create fusion pipeline
-    auto pipeline = Pipeline::Builder()
-        .addSensor<LidarAdapter>("velodyne_front")
-        .addSensor<CameraAdapter>("camera_main")
-        .addFusionNode<KalmanFilter>()
-        .build();
+    // Configure logging
+    Logger::instance().setLevel(LogLevel::Info);
 
-    // Start processing
-    pipeline.start();
+    // Create thread pool with work-stealing
+    ThreadPool pool(4);
+    AURA_LOG_INFO("Thread pool started with {} threads", pool.numThreads());
 
-    // Process sensor data
-    while (auto result = pipeline.getResult()) {
-        // Use fused data
-        auto fused_objects = result->objects();
-    }
+    // Generate synthetic LiDAR data
+    std::vector<LidarPoint> points = generatePointCloud(100000);
+
+    // Submit parallel processing tasks
+    auto future = pool.submit(TaskPriority::High, [&points]() {
+        return filterGroundPoints(points, -1.5f);
+    });
+
+    // Get results
+    auto filtered = future.get();
+    AURA_LOG_INFO("Filtered {} -> {} points", points.size(), filtered.size());
 
     return 0;
 }
+```
+
+### Using the Lock-free Ring Buffer
+
+```cpp
+#include <aura/concurrency/lock_free_ring_buffer.hpp>
+
+// Single-producer single-consumer buffer (SPSC)
+aura::LockFreeRingBuffer<SensorReading, 1024> spsc_buffer;
+
+// Producer thread
+spsc_buffer.tryPush(SensorReading{...});
+
+// Consumer thread
+if (auto reading = spsc_buffer.tryPop()) {
+    process(*reading);
+}
+
+// Multi-producer multi-consumer buffer (MPMC)
+aura::MPMCRingBuffer<SensorReading> mpmc_buffer(1024);
+mpmc_buffer.tryPush(SensorReading{...});
+```
+
+### Using Fusion Nodes
+
+```cpp
+#include <aura/fusion/fusion_node.hpp>
+
+// Create a typed fusion node
+class PointCloudFilter : public aura::TypedFusionNode<LidarFrame, LidarFrame> {
+public:
+    PointCloudFilter() : TypedFusionNode({.name = "GroundFilter"}) {}
+
+protected:
+    std::shared_ptr<LidarFrame> processTyped(std::shared_ptr<LidarFrame> input) override {
+        // Filter ground points
+        auto output = std::make_shared<LidarFrame>();
+        for (const auto& point : input->points) {
+            if (point.z > ground_threshold_) {
+                output->points.push_back(point);
+            }
+        }
+        return output;
+    }
+
+private:
+    float ground_threshold_ = -1.5f;
+};
 ```
 
 ## 🏗️ Architecture
@@ -144,26 +211,23 @@ int main() {
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐           │
-│  │  LiDAR   │  │  Camera  │  │  Radar   │  │   GPS    │           │
+│  │  LiDAR   │  │  Camera  │  │  Radar   │  │ GPS/IMU  │           │
 │  │ Adapter  │  │ Adapter  │  │ Adapter  │  │ Adapter  │           │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘           │
 │       │             │             │             │                   │
 │       ▼             ▼             ▼             ▼                   │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │              Lock-Free Ring Buffers                         │   │
+│  │         Lock-Free Ring Buffers (SPSC/MPMC)                  │   │
+│  │    • Cache-line padding for false sharing prevention        │   │
+│  │    • Atomic sequence-based synchronization                  │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 │                              │                                      │
 │                              ▼                                      │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │              Temporal Alignment Module                       │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                              │                                      │
-│                              ▼                                      │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │    Work-Stealing Thread Pool (Processing Nodes)             │   │
+│  │       Work-Stealing Thread Pool (TaskQueue per thread)      │   │
 │  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │   │
-│  │  │ Point   │  │ Object  │  │ Fusion  │  │Tracking │        │   │
-│  │  │ Cloud   │  │Detection│  │ Node    │  │  Node   │        │   │
+│  │  │ Fusion  │  │ Fusion  │  │ Fusion  │  │ Fusion  │        │   │
+│  │  │ Node 1  │  │ Node 2  │  │ Node 3  │  │ Node N  │        │   │
 │  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘        │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 │                              │                                      │
@@ -180,27 +244,80 @@ int main() {
 ```
 aura-sensor-fusion/
 ├── include/aura/
-│   ├── core/           # Core types, memory management, utilities
-│   ├── sensors/        # Sensor adapters and data types
-│   ├── fusion/         # Fusion algorithms (Kalman, Bayesian)
-│   ├── concurrency/    # Thread pool, lock-free structures
-│   └── utils/          # Logging, profiling, math utilities
-├── src/                # Implementation files
-├── tests/              # Unit and integration tests
-├── examples/           # Usage examples
-├── benchmarks/         # Performance benchmarks
-└── docs/               # Documentation
+│   ├── aura.hpp                    # Main include header
+│   ├── core/
+│   │   ├── types.hpp               # Core data types (LidarPoint, etc.)
+│   │   ├── timestamp.hpp           # High-precision timestamps
+│   │   ├── memory_pool.hpp         # Custom memory allocators
+│   │   └── logging.hpp             # Structured logging
+│   ├── sensors/
+│   │   ├── sensor_base.hpp         # Sensor adapter base class
+│   │   ├── sensor_data.hpp         # Sensor data structures
+│   │   └── sensor_traits.hpp       # Type traits for sensors
+│   ├── fusion/
+│   │   ├── fusion_node.hpp         # Fusion pipeline nodes
+│   │   └── fusion_concepts.hpp     # C++20 concepts
+│   ├── concurrency/
+│   │   ├── lock_free_ring_buffer.hpp  # SPSC/MPMC ring buffers
+│   │   └── thread_pool.hpp         # Work-stealing thread pool
+│   └── utils/
+│       └── profiler.hpp            # Performance profiling
+├── src/                            # Implementation files
+├── tests/
+│   ├── unit/                       # Unit tests
+│   │   ├── test_ring_buffer.cpp
+│   │   ├── test_thread_pool.cpp
+│   │   ├── test_timestamp.cpp
+│   │   ├── test_memory_pool.cpp
+│   │   ├── test_types.cpp
+│   │   └── test_sensors.cpp
+│   └── integration/                # Integration tests
+├── examples/
+│   ├── basic_pipeline.cpp          # Basic usage example
+│   └── sensor_simulation.cpp       # Sensor simulation example
+├── benchmarks/
+│   ├── bench_ring_buffer.cpp
+│   ├── bench_thread_pool.cpp
+│   └── bench_memory_pool.cpp
+└── docs/                           # Documentation
 ```
 
 ## 📊 Performance Targets
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| End-to-end Latency | < 100ms | TBD |
-| Throughput | > 1M points/sec | TBD |
-| Memory Usage | < 2GB peak | TBD |
-| CPU Utilization | > 80% (8 cores) | TBD |
-| Reliability | 99.99% uptime | TBD |
+| Metric | Target | Status |
+|--------|--------|--------|
+| End-to-end Latency | < 100ms | Benchmarking in progress |
+| Throughput | > 1M points/sec | Benchmarking in progress |
+| Memory Usage | < 2GB peak | Benchmarking in progress |
+| CPU Utilization | > 80% (8 cores) | Benchmarking in progress |
+| Reliability | 99.99% uptime | Design target |
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+ctest --test-dir build --output-on-failure
+
+# Run specific test suite
+./build/tests/unit/test_ring_buffer
+./build/tests/unit/test_thread_pool
+./build/tests/unit/test_timestamp
+./build/tests/unit/test_memory_pool
+
+# Run benchmarks
+./build/benchmarks/bench_ring_buffer
+./build/benchmarks/bench_thread_pool
+./build/benchmarks/bench_memory_pool
+```
+
+### CI/CD Pipeline
+
+The project includes a comprehensive CI pipeline that runs on every push:
+
+- **Multi-platform builds**: Linux (GCC 12, Clang 15) and macOS
+- **Multiple build types**: Debug and Release
+- **Sanitizer testing**: AddressSanitizer and UndefinedBehaviorSanitizer
+- **Code formatting**: Enforced via clang-format-17
 
 ## 📚 Documentation
 
@@ -209,29 +326,16 @@ aura-sensor-fusion/
 - [API Reference](docs/api/index.html)
 - [Tutorials](docs/tutorials/)
 
-## 🧪 Testing
-
-```bash
-# Run all tests
-ctest --output-on-failure
-
-# Run specific test suite
-./build/tests/unit/test_ring_buffer
-./build/tests/unit/test_thread_pool
-
-# Run benchmarks
-./build/benchmarks/bench_fusion_pipeline
-```
-
 ## 🤝 Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Ensure code passes formatting (`clang-format-17`)
+4. Commit your changes (`git commit -m 'Add amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
 
 ## 📄 License
 
