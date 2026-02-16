@@ -36,6 +36,15 @@ target_link_libraries(test_thread_pool
 )
 gtest_discover_tests(test_thread_pool)
 
+# Pipeline coordinator tests
+add_executable(test_pipeline_coordinator unit/test_pipeline_coordinator.cpp)
+target_link_libraries(test_pipeline_coordinator
+    PRIVATE
+        aura_core
+        GTest::gtest_main
+)
+gtest_discover_tests(test_pipeline_coordinator)
+
 # Memory pool tests
 add_executable(test_memory_pool unit/test_memory_pool.cpp)
 target_link_libraries(test_memory_pool

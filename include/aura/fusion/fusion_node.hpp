@@ -139,6 +139,33 @@ public:
         return stats_;
     }
 
+    /// Process the next input in the buffer (if any)
+    /// @return true if an input was processed, false otherwise
+    virtual bool processNext() {
+        InputPtr input;
+        {
+            std::lock_guard lock(input_mutex_);
+            if (input_buffer_.empty()) {
+                return false;
+            }
+            input = std::move(input_buffer_.front());
+            input_buffer_.pop_front();
+        }
+
+        if (input) {
+            auto output = process(std::move(input));
+            deliverOutput(std::move(output));
+            return true;
+        }
+        return false;
+    }
+
+    /// Check if inputs are available
+    [[nodiscard]] bool hasPendingInput() const {
+        std::lock_guard lock(input_mutex_);
+        return !input_buffer_.empty();
+    }
+
 protected:
     /// Set the node state
     void setState(NodeState state) noexcept { state_.store(state, std::memory_order_release); }
@@ -150,6 +177,9 @@ protected:
         }
         ++stats_.outputs_generated;
     }
+
+    /// Check if inputs are available (internal use)
+    [[nodiscard]] bool hasInput() const { return hasPendingInput(); }
 
     /// Update latency statistics
     void updateLatency(double latency_ms) {
@@ -173,12 +203,6 @@ protected:
         auto input = std::move(input_buffer_.front());
         input_buffer_.pop_front();
         return input;
-    }
-
-    /// Check if inputs are available
-    [[nodiscard]] bool hasInput() const {
-        std::lock_guard lock(input_mutex_);
-        return !input_buffer_.empty();
     }
 
     FusionNodeConfig config_;
