@@ -45,6 +45,15 @@ target_link_libraries(test_pipeline_coordinator
 )
 gtest_discover_tests(test_pipeline_coordinator)
 
+# Kalman Filter tests
+add_executable(test_kalman_filter unit/test_kalman_filter.cpp)
+target_link_libraries(test_kalman_filter
+    PRIVATE
+        aura_core
+        GTest::gtest_main
+)
+gtest_discover_tests(test_kalman_filter)
+
 # Memory pool tests
 add_executable(test_memory_pool unit/test_memory_pool.cpp)
 target_link_libraries(test_memory_pool
