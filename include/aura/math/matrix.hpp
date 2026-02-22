@@ -175,6 +175,31 @@ public:
         return inv;
     }
 
+    // Cholesky decomposition L * L^T = A
+    // Returns lower triangular matrix L
+    Matrix cholesky() const {
+        static_assert(Rows == Cols, "Cholesky decomposition requires square matrix");
+        Matrix L = Matrix::Zero();
+        for (size_t i = 0; i < Rows; ++i) {
+            for (size_t j = 0; j <= i; ++j) {
+                T sum = 0;
+                for (size_t k = 0; k < j; ++k) {
+                    sum += L(i, k) * L(j, k);
+                }
+                if (i == j) {
+                    T val = (*this)(i, i) - sum;
+                    if (val <= 0) {
+                        throw std::runtime_error("Matrix is not positive definite");
+                    }
+                    L(i, j) = std::sqrt(val);
+                } else {
+                    L(i, j) = (1.0 / L(j, j)) * ((*this)(i, j) - sum);
+                }
+            }
+        }
+        return L;
+    }
+
     // Print
     friend std::ostream& operator<<(std::ostream& os, const Matrix& m) {
         os << "[";
