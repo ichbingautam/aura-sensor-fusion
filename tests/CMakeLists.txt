@@ -54,6 +54,42 @@ target_link_libraries(test_kalman_filter
 )
 gtest_discover_tests(test_kalman_filter)
 
+# Extended Kalman Filter tests
+add_executable(test_ekf unit/test_ekf.cpp)
+target_link_libraries(test_ekf
+    PRIVATE
+        aura_core
+        GTest::gtest_main
+)
+gtest_discover_tests(test_ekf)
+
+# Unscented Kalman Filter tests
+add_executable(test_ukf unit/test_ukf.cpp)
+target_link_libraries(test_ukf
+    PRIVATE
+        aura_core
+        GTest::gtest_main
+)
+gtest_discover_tests(test_ukf)
+
+# Particle Filter tests
+add_executable(test_particle_filter unit/test_particle_filter.cpp)
+target_link_libraries(test_particle_filter
+    PRIVATE
+        aura_core
+        GTest::gtest_main
+)
+gtest_discover_tests(test_particle_filter)
+
+# Data Association tests
+add_executable(test_data_association unit/test_data_association.cpp)
+target_link_libraries(test_data_association
+    PRIVATE
+        aura_core
+        GTest::gtest_main
+)
+gtest_discover_tests(test_data_association)
+
 # Memory pool tests
 add_executable(test_memory_pool unit/test_memory_pool.cpp)
 target_link_libraries(test_memory_pool

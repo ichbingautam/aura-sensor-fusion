@@ -64,9 +64,9 @@
 
 ### Planned Deliverables
 
-- [ ] Kalman filter variations (EKF, UKF)
-- [ ] Particle filter for non-linear systems
-- [ ] Data association algorithms
+- [x] Kalman filter variations (EKF, UKF)
+- [x] Particle filter for non-linear systems
+- [x] Data association algorithms (GNN)
 - [ ] Multi-hypothesis tracking
 - [ ] Confidence fusion
 
@@ -139,7 +139,7 @@
 |-------|--------|------------|
 | Phase 1 | ✅ Complete | 100% |
 | Phase 2 | 🔄 In Progress | 70% |
-| Phase 3 | ⏳ Planned | 0% |
+| Phase 3 | 🔄 In Progress | 60% |
 | Phase 4 | ⏳ Planned | 0% |
 | Phase 5 | 🔄 In Progress | 30% |
 | Phase 6 | 🔄 In Progress | 20% |
